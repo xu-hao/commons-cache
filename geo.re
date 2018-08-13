@@ -1,22 +1,43 @@
 data geo =
   | geo : double * double -> geo
 
+split2(*s, *delim) {
+  *ret = list(*s);
+  *n = strlen(*s);
+  for(*i = 0; *i < *n; *i = *i + 1) {
+    if(substr(*s, *i, *i + 1) == *delim) {
+      *ret = cons(substr(*s, 0, *i), split2(substr(*s, *i + 1, *n), *delim));
+      break;
+    }
+  }
+  *ret;
+}
+
 getIpGeo(*addr) {
-  geo(0,0); # replace with real geolocation ip lookup service
+  # use extreme ip lookup for development purpose
+  msiCurlGetStr("https://extreme-ip-lookup.com/csv/*addr", *output);
+  writeLine("serverLog", *output);
+  *res = split2(*output, ",");
+  # for(*i = 0; *i < size(*res); *i = *i + 1) {
+  #   writeLine("stdout", "*i " ++ elem(*res, *i));
+  # }
+  *lat = double(elem(*res, 11));
+  *lon = double(elem(*res, 12));
+  geo(*lat, *lon);
 }
 
 getRescGeo(*resc) {
   foreach(*r in select META_RESC_ATTR_VALUE where META_RESC_ATTR_NAME = "geo" and RESC_NAME = *resc) {
     *geo = *r.META_RESC_ATTR_VALUE;
   }
-  *ret = split(*get, ",");
+  *ret = split(*geo, ",");
   geo(double(elem(*ret,0)), double(elem(*ret,1)));
 }
 
 distance(*geo0, *geo1) {
   geo(*lat0, *lon0) = *geo0;
   geo(*lat1, *lon1) = *geo1;
-  sqrt(sqr(*lat0 - *lat1) + sqr(*lon0 - *lon1));
+  ((*lat0 - *lat1) ^ 2 + (*lon0 - *lon1) ^ 2) ^^ 2;
 }
 
 sortRescByDistance(*addr) {
@@ -28,6 +49,6 @@ sortRescByDistance(*addr) {
     *dist = distance(*geoIp, *geo);
     *rescList = cons((*dist, *resc), *rescList);
   }
-  quicksort(*list);
-  *list;
+  quicksort(*rescList);
+  *rescList;
 }

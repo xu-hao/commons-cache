@@ -1,16 +1,17 @@
 join(*rescs, *delim) {
-  *str = "";
+  *s = "";
   foreach(*resc in *rescs) {
-    if (*str == "") {
-      *str = *resc;
+    (*_, *rescstr) = *resc;
+    if (*s == "") {
+      *s = *rescstr;
     } else {
-      *str = *str ++ "%" ++ *resc;
+      *s = "*s%*rescstr";
     }
   }
-  *str;
+  *s;
 }
 
-quicksort : input output list((double, string)) -> integer
+quicksort : input output list (double * string) -> integer
 quicksort(*list) {
   quicksortRange(*list, 0, size(*list));
 }
