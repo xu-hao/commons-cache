@@ -46,8 +46,8 @@ pad(*s, *pad, *len) {
   *ret = *s;
   *n = strlen(*s);
   *st = strlen(*pad);
-  *nst = *n / *st;
-  for(*i = 0; *i < *nst; *i = *i + 1)) {
+  *nst = (*len - *n) / *st;
+  for(*i = 0; *i < *nst; *i = *i + 1) {
     *ret = "*pad*ret";
   }
   *ret;

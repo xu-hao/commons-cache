@@ -23,6 +23,7 @@ getIpGeo(*addr) {
   # }
   *lat = double(elem(*res, 11));
   *lon = double(elem(*res, 12));
+  writeLine("serverLog", "lat=*lat,lon=*lon");
   geo(*lat, *lon);
 }
 
@@ -43,16 +44,14 @@ distance(*geo0, *geo1) {
 sortRescByDistance(*addr) {
   *geoIp = getIpGeo(*addr);
   *rescList = list();
+#  writeLine("serverLog", "lat=*lat,lon=*lon");
   foreach(*r in select RESC_NAME where META_RESC_ATTR_NAME = "cache") {
     *resc = *r.RESC_NAME
     *geo = getRescGeo(*resc);
     *dist = distance(*geoIp, *geo);
     *rescList = cons((*dist, *resc), *rescList);
   }
-  if(size(*rescList) > 0) {
-    (_, *nearest) = elem(*rescList, 0);
-    msiSplitPath($objPath, *coll, *data);
-  }
+#  writeLine("serverLog", "lat=*lat,lon=*lon");
   quicksort(*rescList);
   *rescList;
 }
