@@ -49,6 +49,11 @@ sortRescByDistance(*addr) {
     *dist = distance(*geoIp, *geo);
     *rescList = cons((*dist, *resc), *rescList);
   }
+  if(size(*rescList) > 0) {
+    (_, *nearest) = elem(*rescList, 0);
+    msiSplitPath($objPath, *coll, *data);
+  }
   quicksort(*rescList);
   *rescList;
 }
+
