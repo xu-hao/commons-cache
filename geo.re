@@ -1,5 +1,5 @@
 data geo =
-  | geo : integer * integer -> geo
+  | geo : double * double -> geo
 
 getIpGeo(*addr) {
   geo(0,0); # replace with real geolocation ip lookup service
@@ -10,7 +10,7 @@ getRescGeo(*resc) {
     *geo = *r.META_RESC_ATTR_VALUE;
   }
   *ret = split(*get, ",");
-  geo(elem(*ret,0), elem(*ret,1));
+  geo(double(elem(*ret,0)), double(elem(*ret,1)));
 }
 
 distance(*geo0, *geo1) {
