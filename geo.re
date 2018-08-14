@@ -18,9 +18,6 @@ getIpGeo(*addr) {
   msiCurlGetStr("https://extreme-ip-lookup.com/csv/*addr", *output);
   writeLine("serverLog", *output);
   *res = split2(*output, ",");
-  # for(*i = 0; *i < size(*res); *i = *i + 1) {
-  #   writeLine("stdout", "*i " ++ elem(*res, *i));
-  # }
   *lat = double(elem(*res, 11));
   *lon = double(elem(*res, 12));
   writeLine("serverLog", "lat=*lat,lon=*lon");
@@ -35,11 +32,10 @@ getRescGeo(*resc) {
   geo(double(elem(*ret,0)), double(elem(*ret,1)));
 }
 
-distance(*geo0, *geo1) {
-  geo(*lat0, *lon0) = *geo0;
-  geo(*lat1, *lon1) = *geo1;
-  ((*lat0 - *lat1) ^ 2 + (*lon0 - *lon1) ^ 2) ^^ 2;
-}
+distance(*geo0, *geo1) =
+  let geo(*lat0, *lon0) = *geo0 in
+  let geo(*lat1, *lon1) = *geo1 in
+  ((*lat0 - *lat1) ^ 2 + (*lon0 - *lon1) ^ 2) ^^ 2
 
 sortRescByDistance(*addr) {
   *geoIp = getIpGeo(*addr);

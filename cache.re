@@ -20,13 +20,22 @@ acPreprocForDataObjOpen {
       (*_, *name) = elem(*rescs, 0);
       writeLine("serverLog", "try using cache resc *name");
       msiSplitPath($objPath, *coll, *data);
-      *replicatedKey = "replicated:*name";
+      *replicatedKey = usedKey(*name);
       foreach(*r in select count(META_DATA_ATTR_VALUE) where COLL_NAME = *coll and DATA_NAME = *data and META_DATA_ATTR_NAME = *replicatedKey) {
         *count = int(*r.META_DATA_ATTR_VALUE);
       }
+      updateUsedTime($objPath, *name);
       if (*count == 0) {
         writeLine("serverLog", "no copy on cache resc *name, try delayed replication to the cache resc");
         delayReplicate($objPath, *name);
+      } else {
+        foreach(*r2 in select DATA_REPL_STATUS where COLL_NAME = *coll and DATA_NAME = *data and RESC_NAME = *name) {
+          *stat = *r2.DATA_REPL_STATUS;
+        }
+        if (*stat == "0") {
+          writeLine("serverLog", "repl on cache resc *name is outdated, try delayed replication to the cache resc");
+          delayReplicate($objPath, *name);
+        }
       }
       msiSetDataObjPreferredResc(join(*rescs, "%"));
     }
@@ -36,11 +45,15 @@ acPreprocForDataObjOpen {
   }
 }
 
-delayReplicate(*objPath, *resc) {
-  *replicatedKey = "replicated:*resc";
+usedKey(*name) = "used:*name"
+
+updateUsedTime(*objPath, *resc) {
+  *replicatedKey = usedKey(*resc);
   *kvp.*replicatedKey = pad(str(double(time())), "0", 11);
-  msiAssociateKeyValuePairsToObj(*kvp, *objPath, "-d");
-  
+  msiSetKeyValuePairsToObj(*kvp, *objPath, "-d");
+}
+
+delayReplicate(*objPath, *resc) {
   delay("<PLUSET>1s</PLUSET>") {
     foreach(*r in select count(DATA_NAME) where RESC_NAME = *resc) {
       *count = int(*r.DATA_NAME);
@@ -52,6 +65,7 @@ delayReplicate(*objPath, *resc) {
     writeLine("serverLog", "capacity of resc *resc is *capacity");
 
     if(*count >= *capacity) {
+      *replicatedKey = usedKey(*resc);
       foreach(*r in select order_asc(META_DATA_ATTR_VALUE), DATA_NAME, COLL_NAME where META_DATA_ATTR_NAME = *replicatedKey) {
         *data = *r.DATA_NAME;
 	*coll = *r.COLL_NAME;
