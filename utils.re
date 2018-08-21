@@ -25,7 +25,7 @@ quicksortRange(*list, *start, *finish) {
       (*curr, *_) = elem(*list, *i);
       if (*curr < *pivot) {
         swap(*list, *j, *curr);
-	*j = *j + 1;
+	      *j = *j + 1;
       }
     }
     swap(*list, *j - 1, *start);

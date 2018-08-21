@@ -22,4 +22,4 @@ To make a resource as cache resource set the following AVU
 
 For each object that's been cached, the rules add the following metadata
 
-replicated:<resc name>=replicated time padded with leading 0s to 11 chars
+`replicated:<resc name>=replicated time padded with leading 0s to 11 chars`
