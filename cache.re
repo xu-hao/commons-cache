@@ -55,23 +55,29 @@ updateUsedTime(*objPath, *resc) {
 
 delayReplicate(*objPath, *resc) {
   delay("<PLUSET>1s</PLUSET>") {
-    foreach(*r in select count(DATA_NAME) where RESC_NAME = *resc) {
-      *count = int(*r.DATA_NAME);
+    foreach(*r in select sum(DATA_SIZE) where RESC_NAME = *resc) {
+      *sum = int(*r.DATA_SIZE);
     }
-    writeLine("serverLog", "found *count objects in resc *resc");
+    writeLine("serverLog", "found *sum bytes of objects in resc *resc");
     foreach(*r in select META_RESC_ATTR_VALUE where RESC_NAME = *resc and META_RESC_ATTR_NAME = "capacity") {
       *capacity = int(*r.META_RESC_ATTR_VALUE);
     }
     writeLine("serverLog", "capacity of resc *resc is *capacity");
-
-    if(*count >= *capacity) {
-      *replicatedKey = usedKey(*resc);
-      foreach(*r in select order_asc(META_DATA_ATTR_VALUE), DATA_NAME, COLL_NAME where META_DATA_ATTR_NAME = *replicatedKey) {
+    *replicatedKey = usedKey(*resc);
+    while(*sum + $dataSize > *capacity) {
+      *found = false
+      foreach(*r in select order_asc(META_DATA_ATTR_VALUE), DATA_NAME, COLL_NAME, DATA_SIZE where META_DATA_ATTR_NAME = *replicatedKey) {
         *data = *r.DATA_NAME;
-	*coll = *r.COLL_NAME;
+        *coll = *r.COLL_NAME;
+        *sum = *sum - double(*r.DATA_SIZE);
+        *found = true;
       }
-      writeLine("serverLog", "trimming oldest data object on resc *coll/*data");
-      msiDataObjTrim("*coll/*data", *resc, "", "", "", *status);
+      if(*found) {
+        writeLine("serverLog", "trimming oldest data object on resc *coll/*data");
+        msiDataObjTrim("*coll/*data", *resc, "", "", "", *status);      
+      } else {
+        break;
+      }
     }
     
     writeLine("serverLog", "replicating data object *objPath");

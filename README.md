@@ -14,7 +14,7 @@ Add `cache,geo,utils` in front of `core` in `server_config.json`
 
 To make a resource as cache resource set the following AVU
 
-`capacity=max number of cached objects`
+`capacity=max size of cached objects in bytes`
 
 `cache=true`
 
