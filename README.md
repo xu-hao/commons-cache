@@ -20,6 +20,8 @@ To make a resource as cache resource set the following AVU
 
 `geo=lat,lon`
 
+`path=regex for paths of objects to be cached by resc`
+
 For each object that's been cached, the rules add the following metadata
 
 `replicated:<resc name>=replicated time padded with leading 0s to 11 chars`

@@ -16,28 +16,47 @@ acPreprocForDataObjOpen {
       writeLine("serverLog", "*dist=*name");
     }
 
-    if(size(*rescs) != 0) {
-      (*_, *name) = elem(*rescs, 0);
+    foreach(*resc in *rescs) {
+      (*_, *name) = *resc;
       writeLine("serverLog", "try using cache resc *name");
-      msiSplitPath($objPath, *coll, *data);
-      *replicatedKey = usedKey(*name);
-      foreach(*r in select count(META_DATA_ATTR_VALUE) where COLL_NAME = *coll and DATA_NAME = *data and META_DATA_ATTR_NAME = *replicatedKey) {
-        *count = int(*r.META_DATA_ATTR_VALUE);
-      }
-      updateUsedTime($objPath, *name);
-      if (*count == 0) {
-        writeLine("serverLog", "no copy on cache resc *name, try delayed replication to the cache resc");
-        delayReplicate($objPath, *name);
-      } else {
-        foreach(*r2 in select DATA_REPL_STATUS where COLL_NAME = *coll and DATA_NAME = *data and RESC_NAME = *name) {
-          *stat = *r2.DATA_REPL_STATUS;
+      *path = getCachePath(*name);
+      writeLine("serverLog", "path for cache resc *name is *path");
+      
+      if($objPath like regex *path) {
+        writeLine("serverLog", "path $objPath matches for cache resc *name is *path");
+        *capacity = getCacheCapacity(*name);
+        writeLine("serverLog", "capacity of resc *name is *capacity");
+        if($dataSize > *capacity) {
+          writeLine("serverLog", "data size is larger than cache capacity: $objPath");
+        } else {
+          msiSplitPath($objPath, *coll, *data);
+          *replicatedKey = usedKey(*name);
+          foreach(*r in select count(META_DATA_ATTR_VALUE) where COLL_NAME = *coll and DATA_NAME = *data and META_DATA_ATTR_NAME = *replicatedKey) {
+            *count = int(*r.META_DATA_ATTR_VALUE);
+          }
+          updateUsedTime($objPath, *name);
+          if (*count == 0) {
+            writeLine("serverLog", "no copy on cache resc *name, try delayed replication to the cache resc");
+            delayReplicate($objPath, $dataSize, *name, *capacity);
+          } else {
+            *found = false;
+            foreach(*r2 in select DATA_REPL_STATUS where COLL_NAME = *coll and DATA_NAME = *data and RESC_NAME = *name) {
+              *stat = *r2.DATA_REPL_STATUS;
+              *found = *true;
+            }
+            if (!*found) {
+              writeLine("serverLog", "$objPath is not in the cache");
+            } else {
+              if (*stat == "0") {
+                writeLine("serverLog", "repl on cache resc *name is outdated, try delayed replication to the cache resc");
+                delayReplicate($objPath, $dataSize, *name, *capacity);
+              }
+            }
+          }
+          msiSetDataObjPreferredResc(join(*rescs, "%"));
+          break;
         }
-        if (*stat == "0") {
-          writeLine("serverLog", "repl on cache resc *name is outdated, try delayed replication to the cache resc");
-          delayReplicate($objPath, *name);
-        }
       }
-      msiSetDataObjPreferredResc(join(*rescs, "%"));
     }
   }
   or {
@@ -53,18 +72,33 @@ updateUsedTime(*objPath, *resc) {
   msiSetKeyValuePairsToObj(*kvp, *objPath, "-d");
 }
 
-delayReplicate(*objPath, *resc) {
+getCacheLoad(*resc) {
+  foreach(*r in select sum(DATA_SIZE) where RESC_NAME = *resc) {
+    *sum = double(*r.DATA_SIZE);
+  }
+  *sum;
+}
+
+getCacheCapacity(*resc) {
+  foreach(*r in select META_RESC_ATTR_VALUE where RESC_NAME = *resc and META_RESC_ATTR_NAME = "capacity") {
+    *capacity = double(*r.META_RESC_ATTR_VALUE);
+  }
+  *capacity;
+}
+
+getCachePath(*resc) {
+  foreach(*r in select META_RESC_ATTR_VALUE where RESC_NAME = *resc and META_RESC_ATTR_NAME = "path") {
+    *path = *r.META_RESC_ATTR_VALUE;
+  }
+  *path;
+}
+
+delayReplicate(*objPath, *dataSize, *resc, *capacity) {
   delay("<PLUSET>1s</PLUSET>") {
-    foreach(*r in select sum(DATA_SIZE) where RESC_NAME = *resc) {
-      *sum = int(*r.DATA_SIZE);
-    }
+    *sum = getCacheLoad(*resc);
     writeLine("serverLog", "found *sum bytes of objects in resc *resc");
-    foreach(*r in select META_RESC_ATTR_VALUE where RESC_NAME = *resc and META_RESC_ATTR_NAME = "capacity") {
-      *capacity = int(*r.META_RESC_ATTR_VALUE);
-    }
-    writeLine("serverLog", "capacity of resc *resc is *capacity");
     *replicatedKey = usedKey(*resc);
-    while(*sum + $dataSize > *capacity) {
+    while(*sum + *dataSize > *capacity) {
       *found = false
       foreach(*r in select order_asc(META_DATA_ATTR_VALUE), DATA_NAME, COLL_NAME, DATA_SIZE where META_DATA_ATTR_NAME = *replicatedKey) {
         *data = *r.DATA_NAME;
@@ -79,9 +113,18 @@ delayReplicate(*objPath, *resc) {
         break;
       }
     }
-    
     writeLine("serverLog", "replicating data object *objPath");
     msiDataObjRepl(*objPath, "destRescName=*resc", *status);
     writeLine("serverLog", "replicated data object *objPath");
   }
+}
+
+printAllCacheStatus() {
+  foreach(*r in select RESC_NAME where META_RESC_ATTR_NAME = "cache" and META_RESC_ATTR_VALUE = "true") {
+    printCacheStatus(*r.RESC_NAME);
+  }
+}
+
+printCacheStatus(*resc) {
+  writeLine("stdout", "[*resc]\ncapacity: " ++ str(getCacheCapacity(*resc)) ++ "\nload: " ++ str(getCacheLoad(*resc)));
 }
