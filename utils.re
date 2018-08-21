@@ -52,3 +52,8 @@ pad(*s, *pad, *len) {
   }
   *ret;
 }
+
+data maybe(X) = 
+  | just : X -> maybe(X)
+  | nothing : maybe(X)
+

@@ -22,6 +22,8 @@ To make a resource as cache resource set the following AVU
 
 `path=regex for paths of objects to be cached by resc`
 
+`maxDataSize=maximum data size` (optional)
+
 For each object that's been cached, the rules add the following metadata
 
 `replicated:<resc name>=replicated time padded with leading 0s to 11 chars`

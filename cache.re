@@ -24,37 +24,44 @@ acPreprocForDataObjOpen {
       
       if($objPath like regex *path) {
         writeLine("serverLog", "path $objPath matches for cache resc *name is *path");
-        *capacity = getCacheCapacity(*name);
-        writeLine("serverLog", "capacity of resc *name is *capacity");
-        if($dataSize > *capacity) {
-          writeLine("serverLog", "data size is larger than cache capacity: $objPath");
+        *overflow = match getCacheMaxDataSize(*name) with
+          | nothing => false
+          | just(*maxDataSize) => $dataSize > *maxDataSize
+        if(*overflow) {
+          writeLine("serverLog", "data size is larger than cache maxDataSize: *path");  
         } else {
-          msiSplitPath($objPath, *coll, *data);
-          *replicatedKey = usedKey(*name);
-          foreach(*r in select count(META_DATA_ATTR_VALUE) where COLL_NAME = *coll and DATA_NAME = *data and META_DATA_ATTR_NAME = *replicatedKey) {
-            *count = int(*r.META_DATA_ATTR_VALUE);
-          }
-          updateUsedTime($objPath, *name);
-          if (*count == 0) {
-            writeLine("serverLog", "no copy on cache resc *name, try delayed replication to the cache resc");
-            delayReplicate($objPath, $dataSize, *name, *capacity);
+          *capacity = getCacheCapacity(*name);
+          writeLine("serverLog", "capacity of resc *name is *capacity");
+          if($dataSize > *capacity) {
+            writeLine("serverLog", "data size is larger than cache capacity: $objPath");
           } else {
-            *found = false;
-            foreach(*r2 in select DATA_REPL_STATUS where COLL_NAME = *coll and DATA_NAME = *data and RESC_NAME = *name) {
-              *stat = *r2.DATA_REPL_STATUS;
-              *found = *true;
+            msiSplitPath($objPath, *coll, *data);
+            *replicatedKey = usedKey(*name);
+            foreach(*r in select count(META_DATA_ATTR_VALUE) where COLL_NAME = *coll and DATA_NAME = *data and META_DATA_ATTR_NAME = *replicatedKey) {
+              *count = int(*r.META_DATA_ATTR_VALUE);
             }
-            if (!*found) {
-              writeLine("serverLog", "$objPath is not in the cache");
+            updateUsedTime($objPath, *name);
+            if (*count == 0) {
+              writeLine("serverLog", "no copy on cache resc *name, try delayed replication to the cache resc");
+              delayReplicate($objPath, $dataSize, *name, *capacity);
             } else {
-              if (*stat == "0") {
-                writeLine("serverLog", "repl on cache resc *name is outdated, try delayed replication to the cache resc");
-                delayReplicate($objPath, $dataSize, *name, *capacity);
+              *found = false;
+              foreach(*r2 in select DATA_REPL_STATUS where COLL_NAME = *coll and DATA_NAME = *data and RESC_NAME = *name) {
+                *stat = *r2.DATA_REPL_STATUS;
+                *found = true;
+              }
+              if (!*found) {
+                writeLine("serverLog", "$objPath is not in the cache");
+              } else {
+                if (*stat == "0") {
+                  writeLine("serverLog", "repl on cache resc *name is outdated, try delayed replication to the cache resc");
+                  delayReplicate($objPath, $dataSize, *name, *capacity);
+                }
               }
             }
+            msiSetDataObjPreferredResc(join(*rescs, "%"));
+            break;
           }
-          msiSetDataObjPreferredResc(join(*rescs, "%"));
-          break;
         }
       }
     }
@@ -84,6 +91,16 @@ getCacheCapacity(*resc) {
     *capacity = double(*r.META_RESC_ATTR_VALUE);
   }
   *capacity;
+}
+
+getCacheMaxDataSize : string -> maybe(double)
+getCacheMaxDataSize(*resc) {
+  *found = false;
+  foreach(*r in select META_RESC_ATTR_VALUE where RESC_NAME = *resc and META_RESC_ATTR_NAME = "maxDataSize") {
+    *maxDataSize = double(*r.META_RESC_ATTR_VALUE);
+    *found = true;
+  }
+  if *found then just(*maxDataSize) else nothing;
 }
 
 getCachePath(*resc) {
@@ -128,3 +145,4 @@ printAllCacheStatus() {
 printCacheStatus(*resc) {
   writeLine("stdout", "[*resc]\ncapacity: " ++ str(getCacheCapacity(*resc)) ++ "\nload: " ++ str(getCacheLoad(*resc)));
 }
+
