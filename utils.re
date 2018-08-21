@@ -5,7 +5,7 @@ join(*rescs, *delim) {
     if (*s == "") {
       *s = *rescstr;
     } else {
-      *s = "*s%*rescstr";
+      *s = "*s*delim*rescstr";
     }
   }
   *s;
