@@ -2,10 +2,32 @@
 
 
 ## Installation
-Copy `cache.dvm`, `cache.re`, `geo.re`, `utils.re` to irods config dir (default `/etc/irods`)
+
+### `cache.dvm`
+
+Copy `cache.dvm` to irods config dir (default `/etc/irods`)
+
+Add `cache` in front of `core` in `server_config.json`
+```
+"re_data_variable_mapping_set": [
+                        "cache",
+                        "core"
+                    ]
+```
+
+### rules                   
+
+Copy `cache.re`, `geo.re`, `utils.re` to irods config dir (default `/etc/irods`)
 
 Add `cache,geo,utils` in front of `core` in `server_config.json`
-
+```
+"re_rulebase_set2": [
+                        "utils",
+                        "geo",
+                        "cache",
+                        "core"
+                    ]
+```
 
 
 
